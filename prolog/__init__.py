@@ -1,0 +1,1 @@
+from .prolog import Prolog

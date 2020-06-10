@@ -106,6 +106,7 @@ class Prolog(Swipl):
             return predicate(f"{func.__name__}({format_args}).")
 
     def operator_caster(self, body: ast.operator):
+        """ Caster for operators """
         operators = {
             ast.Add: "+",
             ast.Sub: "-",
@@ -128,4 +129,5 @@ class Prolog(Swipl):
 
     @staticmethod
     def prolog_definition(node):
+        """ Find a definition """
         return DEFINITIONS.get(node.__class__)(node)

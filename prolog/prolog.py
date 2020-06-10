@@ -4,9 +4,10 @@ import json
 
 from swipy import Swipl
 from inspect import getsource
-from .predicate import predicate
+from .predicate import predicate, DEFINITIONS
 
 PREDICATE_ONE_DEP = "{0}({2}) :- {1}({3})."
+
 
 def json_parser(value: str, keys):
     """ Parse multiple responses """
@@ -50,20 +51,26 @@ class Prolog(Swipl):
         """ Caster for storing predicates (p/1) """
         expr = body.value
         if expr.__class__ is ast.Yield:
-            format_args = ", ".join('{}' for _ in args)
+            format_args = ", ".join("{}" for _ in args)
             return predicate(f"{func.__name__}({format_args}).")
 
-    def return_caster(self, body: ast.Return, func: typing.Callable, args: typing.Iterable):
+    def return_caster(
+        self, body: ast.Return, func: typing.Callable, args: typing.Iterable
+    ):
         """ Caster for conditionals """
         expr = body.value
 
         if getattr(expr, "func", 0):
+
             return self << PREDICATE_ONE_DEP.format(
                 func.__name__,
                 expr.func.id,
-                ', '.join(args),
-                ', '.join(a.id.upper() for a in expr.args),
+                ", ".join(args),
+                ", ".join(a.id.upper() for a in expr.args),
             )
+
+        elif getattr(expr, "s", 0):
+            return self << f"{func.__name__}({', '.join(args)}) :- {expr.s}"
 
         elif getattr(expr, "op", 0):
             list_op = [expr.values[0], expr.op, *expr.values[1:]]
@@ -77,11 +84,48 @@ class Prolog(Swipl):
 
             for node in list_op:
                 if node.__class__ is ast.Call:
-                    clause += f"{node.func.id}({', '.join(a.id.upper() for a in node.args)})"
+                    clause += (
+                        f"{node.func.id}({', '.join(a.id.upper() for a in node.args)})"
+                    )
                 elif node.__class__ is ast.And:
                     clause += ", "
                 elif node.__class__ is ast.Or:
                     clause += "; "
+                elif node.__class__ is ast.Compare:
+                    left = self.prolog_definition(node.left)
+                    right = self.prolog_definition(node.comparators[0])
+                    op = self.operator_caster(node.ops[0])
+                    clause += f"{left} {op} {right}"
+                else:
+                    clause += self.operator_caster(node)
 
             clause += "."
             self << clause
+
+            format_args = ", ".join("{}" for _ in args)
+            return predicate(f"{func.__name__}({format_args}).")
+
+    def operator_caster(self, body: ast.operator):
+        operators = {
+            ast.Add: "+",
+            ast.Sub: "-",
+            ast.Eq: "=",
+            ast.NotEq: "\\=",
+            ast.And: ", ",
+            ast.Or: "; ",
+            ast.Gt: ">",
+            ast.Lt: "<",
+        }
+
+        if body.__class__ is ast.BoolOp:
+            return self.operator_caster(body.op).join(
+                self.prolog_definition(value) for value in body.values
+            )
+
+        if body.__class__ not in operators:
+            raise RuntimeError(body.__class__.__name__ + " operator is not assigned")
+        return operators[body.__class__]
+
+    @staticmethod
+    def prolog_definition(node):
+        return DEFINITIONS.get(node.__class__)(node)

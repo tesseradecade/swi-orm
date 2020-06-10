@@ -1,30 +1,24 @@
-from prolog import Prolog
+from prolog import Prolog, QueryVar
 
 prolog = Prolog(path_to_swipl="/opt/local/lib/swipl/bin/x86_64-darwin/swipl")
+X = QueryVar("X")
+
 
 @prolog.predicate
-def man(x):
+def person(name: str, age: int):
     yield
 
-@prolog.predicate
-def female(x):
-    yield
 
 @prolog.predicate
-def loves(a, b):
-    return man(a) and female(b)
+def old(name: str):
+    return person(name, X) and X > 40
 
 
-prolog << man("arsenii")
-prolog << man("kesha1225")
-prolog << man("chel")
-
-prolog << female("crinny")
-prolog << female("kotiq")
-prolog << female("linker")
+prolog << person("ars", 15)
+prolog << person("vas", 17)
+prolog << person("and", 50)
 
 prolog.load_predicates()
-query = prolog >> 'loves(X, Y).'
+query = prolog >> old("and")
 
-print("\n".join(prolog.predicates))
 print(query)

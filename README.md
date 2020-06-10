@@ -7,7 +7,7 @@ Python object oriented prolog translator. Project is being tested and doesnt imp
 Install [swipy](https://github.com/timoniq/swipy) (fork of [AILab-FOI/pyxf](https://github.com/AILab-FOI/pyxf)) and `pexpect` requirements:
 
 ```shell script
-pip install pexpect https://github.com/timoniq/swipy.git
+pip install pexpect git+https://github.com/timoniq/swipy
 ```
 
 Clone the repository:
@@ -26,7 +26,9 @@ python setup.py install
 ### Usage
 
 Use main instance of Prolog as a container for predicates. 
+
 `Lshift` (`<<`) operator for prolog instance adds a new predicate with `assert/1` 
+
 `Rshift` (`>>`) operator for prolog instance makes a query
 
 ```python

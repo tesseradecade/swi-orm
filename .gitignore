@@ -126,3 +126,6 @@ dmypy.json
 .idea/
 .DS_Store
 *.iml
+
+# poetry
+poetry.lock

@@ -2,9 +2,9 @@ import typing
 import ast
 import json
 
-from swipy import Swipl
 from inspect import getsource
-from .predicate import predicate, DEFINITIONS
+from prolog.predicate import predicate, DEFINITIONS
+from prolog.swipl import Swipl
 
 PREDICATE_ONE_DEP = "{0}({2}) :- {1}({3})."
 

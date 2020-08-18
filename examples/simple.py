@@ -1,6 +1,7 @@
 from prolog import Prolog, QueryVar
+import os
 
-prolog = Prolog(path_to_swipl="/opt/local/lib/swipl/bin/x86_64-darwin/swipl")
+prolog = Prolog(path_to_swipl=os.environ["path_to_swipl"])
 X = QueryVar("X")
 
 @prolog.predicate

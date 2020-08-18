@@ -1,29 +1,28 @@
-# Python2prolog
+# Python2prolog :lips:
 
-Python object oriented prolog translator. Project is being tested and doesnt implement lots of main features.
+Python object oriented prolog translator. Project is being actively tested.
 
-### Installation
+## Installation
 
-Install [swipy](https://github.com/timoniq/swipy) (fork of [AILab-FOI/pyxf](https://github.com/AILab-FOI/pyxf)) and `pexpect` requirements:
+### Install swi-prolog
 
-```shell script
-pip install pexpect git+https://github.com/timoniq/swipy
-```
+Install [last stable version of SWI-Prolog here](https://www.swi-prolog.org/download/stable)
 
-Clone the repository:
+### Install this translator
 
-```shell script
-git clone https://github.com/tesseradecade/prolog.git
-```
-
-Go to the repository folder and install with `setup.py`:
+With pip:
 
 ```shell script
-cd prolog
-python setup.py install
+pip install prolog-interface
 ```
 
-### Usage
+With poetry:
+
+```shell script
+poetry add prolog-interface
+```
+
+## Usage
 
 Use main instance of Prolog as a container for predicates. 
 
@@ -35,7 +34,7 @@ Use main instance of Prolog as a container for predicates.
 from prolog import Prolog
 from prolog import QueryVar
 
-prolog = Prolog("/path/to/prolog")
+prolog = Prolog("/path/to/prolog") # For example for me is "/opt/local/lib/swipl/bin/x86_64-darwin/swipl"
 X = QueryVar("X")
 
 # You can make objective predicates
@@ -55,3 +54,10 @@ prolog.load_predicates()
 
 print(prolog >> old("Ivan"))  # true
 ```
+
+## Documentation
+
+Documentation is not planned by me still but you can feel free to contribute
+
+Leave a :star: if this project helped you  
+Made with :heart: by [timoniq](https://github.com/timoniq)

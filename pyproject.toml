@@ -4,6 +4,9 @@ version = "0.2"
 description = "Keep it easy! Swi-Prolog object-oriented interface for humans."
 authors = ["timoniq"]
 license = "MIT"
+packages = [
+    { include = "prolog" }
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"

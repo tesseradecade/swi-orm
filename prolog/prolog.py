@@ -1,4 +1,5 @@
 import typing
+import types
 import ast
 import json
 
@@ -18,15 +19,34 @@ def json_parser(value: str, keys):
 class Prolog(Swipl):
     predicates: typing.List[str] = []
 
-    def predicate(self, func: typing.Callable):
-        """ Assign free predicate with decorator
+    def predicate(
+            self,
+            func: typing.Optional[types.FunctionType] = None,
+            source: typing.Optional[str] = None,
+            source_sub: typing.Optional[typing.Callable[[str], str]] = None,
+            spec_parser: typing.Optional[typing.Callable[[list, str, typing.Callable, list], str]] = None,
+    ):
+        """ Assign free predicate with decorator / with source
         :param func: wrapped function
+        :param source:
+        :param source_sub:
+        :param spec_parser:
         """
-        source = getsource(func)
+        if not source:
+            source = getsource(func)
+
+        if source_sub:
+            source = source_sub(source)
+
         code = ast.parse(source).body[0]
         args = [a.arg.upper() for a in code.args.args]
 
-        if code.body[0].__class__ is ast.Expr:
+        if spec_parser is not None:
+            result = spec_parser(code.body, source, func, args)
+            self << result
+            return result
+
+        elif code.body[0].__class__ is ast.Expr:
             return self.expr_caster(code.body[0], func, args)
 
         elif code.body[0].__class__ is ast.Return:

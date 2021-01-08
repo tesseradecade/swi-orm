@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "prolog-interface"
-version = "0.2"
-description = "Keep it easy! Swi-Prolog object-oriented interface for humans."
+version = "1.0a"
+description = "Prolog translator, query builder, ORM"
 authors = ["timoniq"]
 license = "MIT"
 packages = [
@@ -11,6 +11,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "^3.7"
 pexpect = "^4.8.0"
+choicelib = "^0.1.4"
 
 [tool.poetry.dev-dependencies]
 

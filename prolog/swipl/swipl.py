@@ -1,7 +1,9 @@
 import pexpect as px
 import typing
+import re
+import choicelib
 
-from .syntax import SWI_PROMPT, SWI_ERROR, VAR, RES
+from .syntax import SWI_PROMPT, SWI_ERROR, VAR, RES, SWI_MULTIPLE, MULTI_RES
 from prolog.swipl.exception import (
     SWIExecutableNotFound,
     SWICompileError,
@@ -10,26 +12,26 @@ from prolog.swipl.exception import (
 )
 
 
-def default_parser(value: str, lvars: typing.List[str]) -> list:
-    return value.strip("[]").split(", ")
+json = choicelib.choice_in_order(
+    ["json", "ujson", "hyperjson", "orjson"], do_import=True
+)
+QueryResponse = typing.Union[dict, bool]
 
 
 class Swipl:
-    """Python interface to SWI Prolog (http://www.swi-prolog.org)"""
+    """ Python interface to SWI Prolog (http://www.swi-prolog.org) """
 
     def __init__(
         self, path_to_swipl: str = "/path/to/swipl", args: typing.List[str] = None
     ):
-        """Constructor method
+        """ Constructor method
         Usage: swipl( path, args )
         path - path to SWI executable (default: 'swipl')
         args - command line arguments (default: '-q +tty')
         self.engine becomes pexpect spawn instance of SWI Prolog shell
-        Raises: SWIExecutableNotFound"""
+        Raises: SWIExecutableNotFound """
         if args is None:
             args = ["-q", "+tty"]
-
-        self.parser: typing.Callable[[str, typing.List[str]], list] = default_parser
 
         try:
             self.engine = px.spawn(path_to_swipl + " " + " ".join(args))
@@ -41,10 +43,10 @@ class Swipl:
             )
 
     def load(self, path: str) -> None:
-        """Loads module into self.engine
+        """ Loads module into self.engine
         Usage: instance.load( path )
         module - path to module file
-        Raises: SWICompileError"""
+        Raises: SWICompileError """
         self.engine.sendline("['" + path + "'].")
         self.engine.readline()
         index = self.engine.expect([SWI_ERROR, SWI_PROMPT], timeout=3)
@@ -57,33 +59,28 @@ class Swipl:
             )
 
     def load_lines(self, lines: typing.List[str]):
-        """Simply loads line for base swi compiler"""
+        """ Simply loads line for base swi compiler """
         for line in lines:
             if line.endswith("."):
                 line = line[:-1]
+
             self.engine.sendline(f"assert(({line})).")
             self.engine.readline()
 
-            index = self.engine.expect([SWI_ERROR, SWI_PROMPT], timeout=3)
+            index = self.engine.expect([SWI_ERROR, "true.*?[?][-][ ]"], timeout=3)
+
             if not index:
                 raise SWICompileError(
                     'Error while compiling line "'
                     + line
                     + '". Error from SWI:\n'
-                    + str(self.engine.after)
+                    + self.engine.after.decode()
                 )
 
-    def query(self, query: str) -> typing.Union[bool, list]:
-        """Queries current engine state
-        Usage: instance.query( query )
-        query - usual SWI Prolog query (example: 'likes( X, Y )')
-        Returns:
-          True - if yes/no query and answer is yes
-          False - if yes/no query and answer is no
-          List of dictionaries - if normal query. Dictionary keys are returned
-          variable names.
-        Raises: SWIQueryError"""
+    def query(self, query: str) -> typing.Iterator[QueryResponse]:
+        """ Queries current engine state """
         query = query.strip()
+
         if not query.endswith("."):
             query += "."
 
@@ -105,49 +102,55 @@ class Swipl:
                     'Error while executing query "'
                     + query
                     + '". Error from SWI:\n'
-                    + str(self.engine.after)
+                    + self.engine.after.decode()
                 )
-            return "true" in str(self.engine.after)
+            yield "true" in str(self.engine.after)
         else:
-            printer = self._printer(lvars, query)
-            self.engine.sendline(printer)
+            self.engine.sendline(query)
             self.engine.readline()
-            index = self.engine.expect([SWI_ERROR, SWI_PROMPT], timeout=3)
-            if not index:
+
+            index = self.engine.expect([SWI_ERROR, SWI_MULTIPLE], timeout=3)
+            # print(self.engine.before)
+
+            if index == 0:
                 raise SWIQueryError(
                     'Error while executing query "'
                     + query
                     + '". Error from SWI:\n'
-                    + str(self.engine.after)
+                    + self.engine.after.decode()
                 )
-            state = str(self.engine.before)
-            state = state.replace("\\r", "").replace("\\n", "")
-            res = RES.search(str(state))
-            results = self.parser(res.groups()[0], lvars)
-            if not results:
-                return False
-            return results
 
-    @property
-    def response_parser(self) -> typing.Callable[[str, typing.List[str]], list]:
-        return self.parser
+            elif index == 1:
+                yield self.process_multi_res(self.engine.after)
 
-    @response_parser.setter
-    def response_parser(
-        self, new_response_parser: typing.Callable[[str, typing.List[str]], list]
-    ):
-        self.parser = new_response_parser
+                while index == 1:
+                    self.engine.send(";")
+                    # self.engine.readline()
+
+                    index = self.engine.expect([SWI_ERROR, SWI_MULTIPLE], timeout=3)
+                    # print(self.engine.before.decode())
+
+                    yield self.process_multi_res(self.engine.after)
+
+                    if self.engine.after.endswith(b"?- "):
+                        break
+
+    def halt(self):
+        self.engine.sendline("halt(0).")
+
+    def send_dot(self):
+        self.engine.send(".")
 
     @staticmethod
-    def _printer(lvars: typing.List[str], query: typing.List[str]) -> str:
-        """Private method for constructing a result printing query.
-        Usage: instance._printer( lvars, query )
-        lvars - list of logical variables to print
-        query - query containing the variables to be printed
-        Returns: string of the form 'query, writeln( res( 'VarName1', VarName1 ) ) ... writeln( res( 'VarNameN', VarNameN ) ),nl,fail.'
-        """
-        query = query[:-1]
-        if len(lvars) > 1:
-            lvars = ",".join(lvars)
-            return f"bagof([{lvars}], {query}, L)."
-        return f"bagof({lvars[0]}, {query}, L)."
+    def process_data(before: bytes) -> typing.Any:
+        state = str(before)
+        state = state.replace("\\r", "").replace("\\n", "")
+        res = RES.search(str(state))
+        return res
+
+    @staticmethod
+    def process_multi_res(b: bytes) -> dict:
+        multi_res = re.findall(MULTI_RES, b.decode())
+        return json.loads(
+            "{" + ", ".join(f'"{k.lower()}": {v}' for (k, v) in multi_res) + "}"
+        )

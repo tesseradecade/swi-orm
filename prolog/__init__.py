@@ -1,2 +1,5 @@
 from .prolog import Prolog
-from .predicate import QueryVar
+from .orm import Predicate
+from .query import QueryVar, QuerySet
+
+ANONYMOUS_QV = QueryVar("_")

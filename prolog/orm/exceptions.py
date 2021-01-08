@@ -1,0 +1,2 @@
+class ORMException(BaseException):
+    pass
